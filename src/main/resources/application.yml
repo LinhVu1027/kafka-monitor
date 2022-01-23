@@ -1,0 +1,17 @@
+
+spring.kafka:
+  bootstrapServers: localhost:29092
+  producer:
+    value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+  #        properties:
+  #            sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="cloud" password="cloud";
+  #            sasl.mechanism: PLAIN
+  #            security.protocol: SASL_SSL
+  consumer:
+    #        value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+    value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    properties:
+      request.timeout.ms: 66666
+logging:
+  level:
+    org.apache.kafka.clients.admin: TRACE
