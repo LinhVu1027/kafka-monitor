@@ -1,7 +1,12 @@
 package vn.cloud.springkafkamonitor.broker;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.util.Set;
 
+@Getter
+@NoArgsConstructor
 public class ConsumerGroupDto {
     private String groupId;
     private Set<ConsumerMemberDto> members;
@@ -13,6 +18,8 @@ public class ConsumerGroupDto {
         this.coordinator = coordinator;
     }
 
+    @Getter
+    @NoArgsConstructor
     public static class ConsumerMemberDto {
         private String memberId;
         private String clientId;
@@ -25,6 +32,8 @@ public class ConsumerGroupDto {
         }
     }
 
+    @Getter
+    @NoArgsConstructor
     public static class TopicPartitionOffsetDto {
         private String topic;
         private int partition;

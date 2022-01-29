@@ -2,6 +2,7 @@ package vn.cloud.springkafkamonitor.broker;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.Config;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.DescribeAclsResult;
@@ -21,20 +22,21 @@ import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclBindingFilter;
 import org.apache.kafka.common.config.ConfigResource;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
-import org.springframework.kafka.support.KafkaUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @Service
 public class BrokerServiceImpl implements BrokerService {
-    private Map<String, Object> configs;
+    private final Map<String, Object> configs;
 
     public BrokerServiceImpl(KafkaProperties kafkaProperties) {
         this.configs = kafkaProperties.buildAdminProperties();
@@ -45,40 +47,31 @@ public class BrokerServiceImpl implements BrokerService {
         return AdminClient.create(configs2);
     }
 
-    public void describeCluster() {
+    public ClusterDto describeCluster() {
         try (AdminClient kafkaAdmin = createAdmin()) {
             DescribeClusterResult clusterMetadata = kafkaAdmin.describeCluster();
             String clusterId = clusterMetadata.clusterId().get();
             Collection<Node> nodes = clusterMetadata.nodes().get();
             Node controller = clusterMetadata.controller().get();
-
-            System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            return ClusterDto.from(clusterId, nodes, controller);
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public void describeBrokerConfig(String brokerId) {
+    public Map<String, String> describeBrokerConfig(String brokerId) {
         try (AdminClient kafkaAdmin = createAdmin()) {
             ConfigResource configResource = new ConfigResource(ConfigResource.Type.BROKER, brokerId);
             DescribeConfigsResult configsResult = kafkaAdmin.describeConfigs(Collections.singletonList(configResource));
-            System.out.println(Thread.currentThread().getName());
-            configsResult.all().whenComplete((result, error) -> {
-                System.out.println(Thread.currentThread().getName());
-                System.out.println("hehe");
-            });
+            Config config = configsResult.values().get(configResource).get();
 
-            ConfigResource configResource1 = new ConfigResource(ConfigResource.Type.BROKER_LOGGER, brokerId);
-            DescribeConfigsResult configsResult1 = kafkaAdmin.describeConfigs(Collections.singletonList(configResource1));
-            Map<ConfigResource, Config> configResourceConfigMap1 = configsResult1.all().get();
-
-            System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            Map<String, String> brokerConfig = new TreeMap<>();
+            for (ConfigEntry entry : config.entries()) {
+                brokerConfig.put(entry.name(), entry.value());
+            }
+            return brokerConfig;
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -86,71 +79,63 @@ public class BrokerServiceImpl implements BrokerService {
         try (AdminClient kafkaAdmin = createAdmin()) {
             DescribeAclsResult describeAclsResult = kafkaAdmin.describeAcls(AclBindingFilter.ANY);
             Collection<AclBinding> aclBindings = describeAclsResult.values().get();
-
             System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
 
     }
 
-    public void listTopics() {
+    public TopicListingDto listTopics() {
         try (AdminClient kafkaAdmin = createAdmin()) {
             ListTopicsResult topicsMetadata = kafkaAdmin.listTopics();
-            Map<String, TopicListing> stringTopicListingMap = topicsMetadata.namesToListings().get();
-
-            System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            Map<String, TopicListing> topicListings = topicsMetadata.namesToListings().get();
+            return TopicListingDto.from(topicListings);
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public void describeTopic(String topic) {
+    public TopicDescriptionDto describeTopic(String topic) {
         try (AdminClient kafkaAdmin = createAdmin()) {
             DescribeTopicsResult topicsMetadata = kafkaAdmin.describeTopics(Collections.singletonList(topic));
             TopicDescription topicDescription = topicsMetadata.values().get(topic).get();
-
-            System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            return TopicDescriptionDto.from(topicDescription);
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
-
     }
 
-    public void describeTopicConfig(String topic) {
+    public Map<String, String> describeTopicConfig(String topic) {
         try (AdminClient kafkaAdmin = createAdmin()) {
             ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, topic);
             DescribeConfigsResult configsResult = kafkaAdmin.describeConfigs(Collections.singletonList(configResource));
-            Map<ConfigResource, Config> configResourceConfigMap = configsResult.all().get();
+            Config config = configsResult.values().get(configResource).get();
 
-            System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            Map<String, String> topicConfig = new TreeMap<>();
+            for (ConfigEntry entry : config.entries()) {
+                topicConfig.put(entry.name(), entry.value());
+            }
+            return topicConfig;
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public void consumerGroups() {
+    public List<ConsumerGroupListingDto> consumerGroups() {
         try (AdminClient kafkaAdmin = createAdmin()) {
             ListConsumerGroupsResult consumerGroups = kafkaAdmin.listConsumerGroups();
             Collection<ConsumerGroupListing> valid = consumerGroups.valid().get();
             Collection<Throwable> errors = consumerGroups.errors().get();
             Collection<ConsumerGroupListing> all = consumerGroups.all().get();
 
-            System.out.println("haha");
+            return all.stream().map(ConsumerGroupListingDto::from).collect(Collectors.toList());
         } catch (ExecutionException | InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
-    public void consumerGroupDescription(String groupId) {
+    public ConsumerGroupDto consumerGroupDescription(String groupId) {
         try (AdminClient adminClient = createAdmin()) {
             // ConsumerGroup's member
             ConsumerGroupDescription consumerGroupDescription = adminClient.describeConsumerGroups(Collections.singletonList(groupId))
@@ -183,14 +168,10 @@ public class BrokerServiceImpl implements BrokerService {
                 }).collect(Collectors.toSet());
                 return new ConsumerGroupDto.ConsumerMemberDto(member.consumerId(), member.clientId(), partitions);
             }).collect(Collectors.toSet());
-            ConsumerGroupDto result = new ConsumerGroupDto(consumerGroupDescription.groupId(), members, consumerGroupDescription.coordinator().toString());
+            return new ConsumerGroupDto(consumerGroupDescription.groupId(), members, consumerGroupDescription.coordinator().toString());
 
-            System.out.println("haha");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
-
     }
 }
