@@ -1,8 +1,13 @@
 package vn.cloud.springkafkamonitor.topic;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@NoArgsConstructor
 public class PartitionDto {
     private int id;
     private Integer replicaLeaderId;
@@ -21,6 +26,8 @@ public class PartitionDto {
         return id;
     }
 
+    @Getter
+    @NoArgsConstructor
     public static class ReplicaDto {
         private int id;
         private boolean leader;

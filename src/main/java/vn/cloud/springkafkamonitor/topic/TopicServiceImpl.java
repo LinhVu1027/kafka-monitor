@@ -3,6 +3,7 @@ package vn.cloud.springkafkamonitor.topic;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -15,6 +16,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,7 +31,7 @@ public class TopicServiceImpl implements TopicService {
     private final ConsumerFactory<Object, Object> consumerFactory;
 
     @Override
-    public void getLatestRecords(String topic) {
+    public Map<String, List<ConsumerRecordDto<Object, Object>>> getLatestRecords(String topic) {
         try (Consumer<Object, Object> kafkaConsumer = this.consumerFactory.createConsumer()) {
             // Get the topic's partitions
             List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(topic);
@@ -44,17 +46,23 @@ public class TopicServiceImpl implements TopicService {
             // Seek from the latest record offset of each partition
             kafkaConsumer.assign(partitions); // If not, IllegalStateException: No current assignment for partitionX will be thrown when `seek`
             for (TopicPartition partition : partitions) {
-                long latestRecordOffset = latestOffsets.get(partition) - 1;
+                long latestRecordOffset = latestOffsets.get(partition) == 0 ? latestOffsets.get(partition) : latestOffsets.get(partition) - 1;
                 kafkaConsumer.seek(partition, latestRecordOffset);
             }
 
             ConsumerRecords<Object, Object> polled = kafkaConsumer.poll(Duration.of(5L, ChronoUnit.SECONDS));
-            System.out.println("haha");
+
+            Map<String, List<ConsumerRecordDto<Object, Object>>> records = new HashMap<>();
+            for (TopicPartition topicPartition : partitions) {
+                List<ConsumerRecord<Object, Object>> partitionRecords = polled.records(topicPartition);
+                records.put(topicPartition.toString(), partitionRecords.stream().map(ConsumerRecordDto::from).collect(Collectors.toList()));
+            }
+            return records;
         }
     }
 
     @Override
-    public ConsumerRecords<Object, Object> getNLatestRecordsFromOffset(String topic, int partition, long recordOffset, int n) {
+    public List<ConsumerRecordDto<Object, Object>> getNRecordsFromOffset(String topic, int partition, long offset, int n) {
         Properties props = this.maxRecordsPerPoll(n);
         try (Consumer<Object, Object> kafkaConsumer = this.consumerFactory.createConsumer(null, null, null, props)) {
             TopicPartition topicPartition = new TopicPartition(topic, partition);
@@ -62,17 +70,20 @@ public class TopicServiceImpl implements TopicService {
             // Get this partition's earliest offset
             Long earliestOffset = kafkaConsumer.beginningOffsets(Collections.singletonList(topicPartition)).get(topicPartition);
 
-            recordOffset = Math.max(recordOffset, earliestOffset);
+            offset = Math.max(offset, earliestOffset);
 
             kafkaConsumer.assign(Collections.singletonList(topicPartition));
-            kafkaConsumer.seek(topicPartition, recordOffset);
+            kafkaConsumer.seek(topicPartition, offset);
 
-            return kafkaConsumer.poll(Duration.of(5L, ChronoUnit.SECONDS));
+            ConsumerRecords<Object, Object> polled = kafkaConsumer.poll(Duration.of(5L, ChronoUnit.SECONDS));
+
+            List<ConsumerRecord<Object, Object>> partitionRecords = polled.records(topicPartition);
+            return partitionRecords.stream().map(ConsumerRecordDto::from).collect(Collectors.toList());
         }
     }
 
     @Override
-    public ConsumerRecords<Object, Object> getNLatestRecords(String topic, int partition, int n) {
+    public List<ConsumerRecordDto<Object, Object>> getNLatestRecords(String topic, int partition, int n) {
         Properties props = this.maxRecordsPerPoll(n);
         try (Consumer<Object, Object> kafkaConsumer = this.consumerFactory.createConsumer(null, null, null, props)) {
             TopicPartition topicPartition = new TopicPartition(topic, partition);
@@ -88,7 +99,9 @@ public class TopicServiceImpl implements TopicService {
             kafkaConsumer.assign(Collections.singletonList(topicPartition));
             kafkaConsumer.seek(topicPartition, Math.max(earliestOffset, recordLatestOffset - n + 1));
 
-            return kafkaConsumer.poll(Duration.of(5L, ChronoUnit.SECONDS));
+            ConsumerRecords<Object, Object> polled = kafkaConsumer.poll(Duration.of(5L, ChronoUnit.SECONDS));
+            List<ConsumerRecord<Object, Object>> partitionRecords = polled.records(topicPartition);
+            return partitionRecords.stream().map(ConsumerRecordDto::from).collect(Collectors.toList());
         }
     }
 
@@ -118,7 +131,6 @@ public class TopicServiceImpl implements TopicService {
             topicDto.setPartitions(partitionDtos);
             return topicDto;
         }
-
     }
 
     private Properties maxRecordsPerPoll(int n) {

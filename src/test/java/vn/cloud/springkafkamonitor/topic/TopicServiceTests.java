@@ -5,8 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 @SpringBootTest
 class TopicServiceTests {
 
@@ -20,8 +18,7 @@ class TopicServiceTests {
 
     @Test
     void getNLatestRecords() {
-        ConsumerRecords<Object, Object> nLatestRecords = this.topicService.getNLatestRecords("topic1", 0, 7);
-        System.out.println("haha");
+        this.topicService.getNLatestRecords("topic1", 0, 7);
     }
 
     @Test
@@ -31,8 +28,7 @@ class TopicServiceTests {
 
     @Test
     void avc() {
-        ConsumerRecords<Object, Object> nLatestRecordsFromOffset = this.topicService.getNLatestRecordsFromOffset("topic1", 0, 1, 7);
-        System.out.println("haha");
+        this.topicService.getNRecordsFromOffset("topic1", 0, 1, 7);
     }
 
 

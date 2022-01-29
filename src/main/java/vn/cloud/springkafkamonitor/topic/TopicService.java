@@ -1,11 +1,12 @@
 package vn.cloud.springkafkamonitor.topic;
 
-import org.apache.kafka.clients.consumer.ConsumerRecords;
+import java.util.List;
+import java.util.Map;
 
 public interface TopicService {
-    void getLatestRecords(String topic);
-    ConsumerRecords<Object, Object> getNLatestRecords(String topic, int partition, int n);
-    ConsumerRecords<Object, Object> getNLatestRecordsFromOffset(String topic, int partition, long recordOffset, int n);
+    Map<String, List<ConsumerRecordDto<Object, Object>>> getLatestRecords(String topic);
+    List<ConsumerRecordDto<Object, Object>> getNLatestRecords(String topic, int partition, int n);
+    List<ConsumerRecordDto<Object, Object>> getNRecordsFromOffset(String topic, int partition, long recordOffset, int n);
     TopicDto getTopicInfo(String topic);
 
 }
