@@ -1,3 +1,5 @@
+server:
+  port: 8089
 
 spring.kafka:
   bootstrapServers: localhost:29092
@@ -15,3 +17,4 @@ spring.kafka:
 logging:
   level:
     org.apache.kafka.clients.admin: TRACE
+
